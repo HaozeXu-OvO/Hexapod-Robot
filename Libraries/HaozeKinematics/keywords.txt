@@ -1,0 +1,12 @@
+#######################################
+# Syntax Coloring Map For HaozeKinematics
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+HaozeKinematics   	KEYWORD1
+
+AddJointMDH      KEYWORD2
+flame2frame     KEYWORD2

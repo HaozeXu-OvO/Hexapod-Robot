@@ -1,0 +1,13 @@
+HaozeRobot   	KEYWORD1
+Haoze_H1mini	KEYWORD1
+init		    KEYWORD2
+connect		    KEYWORD2
+forward	        KEYWORD2
+backward        KEYWORD2
+turnleft        KEYWORD2
+turnright       KEYWORD2
+leftward        KEYWORD2
+rightward       KEYWORD2
+servowrite      KEYWORD2
+framewrite      KEYWORD2
+flame2frame     KEYWORD2
