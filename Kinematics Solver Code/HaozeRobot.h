@@ -1,12 +1,3 @@
-/*******************************************************
-   主板：Haoze_Servo8266
-   功能：Haoze_H1mini六足机器人库文件
-   引脚：SDA:21   SCL:22
-   对于ARDUINO UNO，SCL:A5，SDA:A4
-   Designer: Allen
-   E-mail:953598974@qq.com
-   Date:2024-08-14
-*******************************************************/
 #include "Wire.h"
 #include "Adafruit_PWMServoDriver.h"
 #include "HaozeKinematics.h"

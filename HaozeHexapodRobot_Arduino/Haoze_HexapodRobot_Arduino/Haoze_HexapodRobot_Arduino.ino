@@ -1,31 +1,21 @@
-/*******************************************************
-   主板：Haoze_Servo8266
-   功能：Haoze_H1mini六足机器人Arduino程序
-   引脚：SDA:21   SCL:22
-   对于ARDUINO UNO，SCL:A5，SDA:A4
-   Designer: Allen
-   E-mail:953598974@qq.com
-   Date:2024-08-19
-*******************************************************/
 #include <HaozeRobot.h>
 #include <ESP8266WiFi.h>
-#include <EEPROM.h>  //引入库文件
+#include <EEPROM.h>
 #include <Wire.h>
 #include <Adafruit_PWMServoDriver.h>
 #include "StepData.h"
 Haoze_H1mini haoze;
 //#include "PS2.h"
-//关节标定数据存储起始位置
+//Joint calibration data storage starting position
 #define Servo_Addr 0
 
 #define del 100
 #define deltr 3
-#define led 2               //led为低电平时，灯亮；高电平时，灯灭
+#define led 2               //When the LED is at a low level, the lamp illuminates; when at a high level, the lamp extinguishes.
 
 #define wifi
 //#define ps2
 
-/***************************************************************************************/
 #ifdef ps2
 
 #include <PS2X_lib.h>  //for v1.6
@@ -56,25 +46,25 @@ byte vibrate = 0;
 
 #ifdef wifi
 
-#define MAX_SRV_CLIENTS 3   //最大同时联接数，即你想要接入的设备数量，8266tcpserver只能接入五个
+#define MAX_SRV_CLIENTS 3   //The maximum number of simultaneous connections, i.e. the number of devices you wish to connect, is limited to five for the 8266TCPServer.
 
 const char *ssid = "Haoze"; 
 const char *password = "haozerobot"; 
-WiFiServer server(8266);//你要的端口号，随意修改，范围0-65535
+WiFiServer server(8266);//The port number you require may be modified at your discretion, within the range 0 to 65535.
 WiFiClient serverClients[MAX_SRV_CLIENTS];
 #endif
 
-Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();               //驱动1~16或(0~15)号舵机
-Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x41);          //驱动17~32或(16~31)号舵机
+Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver();               //Drive servos 1 to 16 or (0 to 15)
+Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x41);          //Drive servos 17 to 32 or (16 to 31)
 
-#define servo180     //如果你的舵机是180度舵机，那么将这一行代码取消注释，并将下一行代码注释掉
-//#define servo270   //如果你的舵机是270度舵机，那么将这一行代码取消注释，并将上一行代码注释掉
+#define servo180
+//#define servo270   //If your servo is a 270-degree servo, then uncomment this line of code and comment out the previous line.
 
 #ifdef servo180
 //#define SERVOMIN  102               //0.5/20 * 4096 = 102
 //#define SERVOMID  307               //1.5/20 * 4096 = 307
 //#define SERVOMAX  512               //2.5/20 * 4096 = 512
-//实际测试
+
 #define SERVOMIN  102               
 #define SERVOMID  327               
 #define SERVOMAX  552
@@ -84,22 +74,22 @@ Adafruit_PWMServoDriver pwm1 = Adafruit_PWMServoDriver(0x41);          //驱动1
 //#define SERVOMIN  102               //0.5/20 * 4096 = 102
 //#define SERVOMID  307               //1.5/20 * 4096 = 307
 //#define SERVOMAX  512               //2.5/20 * 4096 = 512
-//实际测试
+
 #define SERVOMIN  177           
 #define SERVOMID  327               
 #define SERVOMAX  577
 #endif
 
-//pwm.setPWM(i, 0, pulselen);第一个参数是通道数;第二个是高电平起始点，也就是从0开始;第三个参数是高电平终止点。
+//pwm.setPWM(i, 0, pulselen);The first parameter is the number of channels; the second is the high-level starting point, which begins at zero; the third parameter is the high-level ending point.
 
-//a:前进; b:后退; c:左转; d:右转; e:停止; f:向左横行 g:向右横行 h:步态切换 i:身高切换 j:原地蹲起 k:跳跳；
-//last_cmd表示上一个指令，可以表示机器人状态。
+//a: Forward; b: Backward; c: Left turn; d: Right turn; e: Stop; f: Move sideways left; g: Move sideways right; h: Gait switch; i: Height switch; j: Squat in place; k: Jump;
+//last_cmd denotes the previous command and may indicate the robot's state.
 char cmd = 'e',last_cmd = 'e';
-//gait表示步态，1为波动步态，0为三角步态；body表示身高，0为最低，1为中间，2为最高;robotstatus为机器人状态，
+//gait denotes gait type, where 1 indicates undulating gait and 0 denotes triangular gait; body denotes height, where 0 represents the shortest, 1 denotes medium height, and 2 denotes the tallest; robotstatus denotes robot status,
 int gait=0,body=0,robotstatus=0;
 
 
-//转弯半径控制比例,前进后退速度比例
+// Turning radius control ratio, forward and reverse speed ratio
 float zhuanwan_k = 1;
 float qianhou_k = 1;
 
@@ -113,7 +103,7 @@ signed char rec[18] = {
   0,0,0,
   0,0,0
 };
-//机器人当前关节变量，舵机当前角度
+// Robot's current joint variables, servo's current angle
 float Servo_p[18] = {
   0.0 , 0.0 , 0.0 ,
   0.0 , 0.0 , 0.0 , 
@@ -123,7 +113,7 @@ float Servo_p[18] = {
   0.0 , 0.0 , 0.0
 };
 
-//机器人当前关节变量，舵机当前角度
+// Robot's current joint variables, servo's current angle
 float zero_p[18] = {
   0.0 , 0.0 , 0.0 ,
   0.0 , 0.0 , 0.0 , 
@@ -132,7 +122,7 @@ float zero_p[18] = {
   0.0 , 0.0 , 0.0 , 
   0.0 , 0.0 , 0.0
 };
-//机器人目标关节变量，舵机目标角度
+// Robot target joint variables, servo target angles
 float Servo_r[18] = {
   0.0 , 0.0 , 0.0 ,
   0.0 , 0.0 , 0.0 , 
@@ -141,7 +131,7 @@ float Servo_r[18] = {
   0.0 , 0.0 , 0.0 , 
   0.0 , 0.0 , 0.0
 };
-//舵机方向反相参数
+// Servo direction inversion parameter
 int direct[18] = {-1,1,1,
 -1,1,1,
 -1,1,1,
@@ -152,11 +142,11 @@ int direct[18] = {-1,1,1,
 
 int gait_zhen = 0;
 
-void iic_device_test()//扫描iic芯片，如果开机闪烁一次，说明是0x40未扫描到；如果闪烁两次，则是0x41未扫描到。
+void iic_device_test()//Scan the IIC chip. If it flashes once upon power-up, this indicates that 0x40 was not detected; if it flashes twice, this indicates that 0x41 was not detected.
 {
-  bool iic_flag[2];//定义一个iic标志数组用于表示iic扫描结果
+  bool iic_flag[2];//Define an IIC flag array to represent the IIC scan results.
   Wire.beginTransmission(0x40);
-  if(Wire.endTransmission()!=0)//0是扫描到设备了，非0是未扫描到设备。
+  if(Wire.endTransmission()!=0)//0 indicates the device has been scanned; non-zero indicates the device has not been scanned.
   while(1)
   {
     digitalWrite(led,0);
@@ -165,7 +155,7 @@ void iic_device_test()//扫描iic芯片，如果开机闪烁一次，说明是0x
     delay(1000);
   }
   Wire.beginTransmission(0x41);
-  if(Wire.endTransmission()!=0)//0是扫描到设备了，非0是未扫描到设备。
+  if(Wire.endTransmission()!=0)
   while(1)
   {
     digitalWrite(led,0);
@@ -213,7 +203,7 @@ void blink()
 
 void setup() {
   // put your setup code here, to run once:
-    //定义各个关节舵机接口号
+    //Define the interface numbers for each joint servo
   haoze.Jointservo[0] = 0;haoze.Jointservo[1] = 1;haoze.Jointservo[2] = 2;
   haoze.Jointservo[3] = 18;haoze.Jointservo[4] = 4;haoze.Jointservo[5] = 5;
   haoze.Jointservo[6] = 6;haoze.Jointservo[7] = 19;haoze.Jointservo[8] = 8;
@@ -224,12 +214,12 @@ void setup() {
   haoze.Jointservo[3] = 18;haoze.Jointservo[7] = 19;haoze.Jointservo[11] = 20;
 
   pinMode(led, OUTPUT);
-  digitalWrite(led, 1);//led为低电平时，灯亮；高电平时，灯灭
+  digitalWrite(led, 1);
   Serial.begin(115200);
   Serial.println();
   Serial.println("Haoze_H1mini HexapodRobot program!");
 
-  Wire.begin();//开启IIC通信
+  Wire.begin();//Initiating IIC communication
   iic_device_test();
   Serial.println("iic!");
   
@@ -239,10 +229,10 @@ void setup() {
   pwm1.setPWMFreq(50);  // Analog servos run at ~50 Hz updates
   Serial.println("PCA9685!");
 
-  //存储下来0度的偏移量
-  EEPROM.begin(4095);//初始化eeprom大小
-  //判断eeprom是否经过初始化
-  rec_lin = EEPROM.read(4094);//最后面的这一个代表初始化标志,127为已初始化，否则为未初始化
+  //Store the offset at 0 degrees
+  EEPROM.begin(4095);// Initialise EEPROM size
+  //Determine whether the EEPROM has been initialised
+  rec_lin = EEPROM.read(4094);//The final one represents the initialisation flag: 127 indicates initialised, otherwise it is not initialised.
   delay(1);
   if(rec_lin != 127)
   {
@@ -258,7 +248,7 @@ void setup() {
   else;
   
   
-  //打印出来eeprom区域的所有数据
+  // Print all data from the EEPROM region
   for(int i=0;i<18;i++)
   {
     rec_lin = EEPROM.read(i);
@@ -271,7 +261,7 @@ void setup() {
   
   for(int i=0;i<18;i++)
   Servo_p[i] = float(rec[i]);
-  ESP.wdtFeed();                    //喂狗防止复位
+  ESP.wdtFeed();                    
   delay(100);
 
   digitalWrite(led, 0);
@@ -293,7 +283,7 @@ void setup() {
   Serial.print("The robot IP address is:");
   Serial.println(WiFi.localIP());
   server.begin();
-  server.setNoDelay(true);  //加上后才正常些
+  server.setNoDelay(true);  
   #endif
 
 
@@ -349,7 +339,7 @@ void setup() {
   for(int i=0;i<18;i++)
   Servo_p[i] = 0.0;
 
-  //从标定姿态过渡到前进准备姿态
+  //Transition from calibration attitude to forward preparation attitude
   haoze.framewrite(Servo_p);
   haoze.frame2frame(Servo_p,forwarda[0]);
   haoze.framewrite(forwarda[0]);  
@@ -365,8 +355,8 @@ void loop() {
         {
             if (!serverClients[i] || !serverClients[i].connected())
             {
-                if (serverClients[i]) serverClients[i].stop();//未联接,就释放
-                serverClients[i] = server.available();//分配新的
+                if (serverClients[i]) serverClients[i].stop();
+                serverClients[i] = server.available();
                 continue;
             }
  
@@ -378,7 +368,7 @@ void loop() {
     {
         if (serverClients[i] && serverClients[i].connected())
         {
-            digitalWrite(led, 0);//有链接存在,就一直长亮
+            digitalWrite(led, 0);//As long as a link exists, it remains permanently illuminated.
  
             if (serverClients[i].available())
             {
@@ -517,27 +507,27 @@ void loop() {
   while(Serial.available()>0)
   {
     cmd = Serial.read();
-    if(cmd=='x')//校准舵机角度
+    if(cmd=='x')//Calibrate servo angle
     {
       while(Serial.available()>0)
       {
         int servo_id=Serial.parseInt();
         haoze.rec[servo_id]=Serial.read();
-        //转换成signed char(范围-128~127),esp8266默认char是unsigned char，范围0~255
+        //Convert to signed char (range -128 to 127). ESP8266 defaults to unsigned char, with a range of 0 to 255.
         haoze.rec[servo_id]=Serial.parseInt();
         EEPROM.write(Servo_Addr+servo_id,haoze.rec[servo_id]);
         EEPROM.commit();
       }
-      haoze.printcaliData();//打印关节标定数据
+      haoze.printcaliData();//Print joint calibration data
       for(int i=0;i<18;i++)
       Servo_p[i] = float(rec[i]);
       haoze.framewrite(haoze.Servo0);
       delay(100);
     }    
   }
-    if(cmd == 'a')          //前进
+    if(cmd == 'a')          //Forward
     {
-      if(gait==0)//如果是三角步态
+      if(gait==0)//If it is a triangular gait
       {
         if(gait_zhen>39)
         {
@@ -561,10 +551,10 @@ void loop() {
         
         haoze.framewrite(Servo_p);
         delay(haoze.speed);
-        ESP.wdtFeed();                    //喂狗防止复位
+        ESP.wdtFeed();
         gait_zhen++;
         }
-      else if(gait==1)//如果是波动步态
+      else if(gait==1)//If it is a swaying gait
       {
         if(gait_zhen>59)
         gait_zhen = 0;
@@ -574,14 +564,14 @@ void loop() {
         
         haoze.framewrite(Servo_p);
         delay(haoze.speed);
-        ESP.wdtFeed();                    //喂狗防止复位
+        ESP.wdtFeed();
         gait_zhen++;
       }
       
     }
-    else if(cmd == 'b')//后退
+    else if(cmd == 'b')//Back off
     {
-      if(gait==0)//如果是三角步态
+      if(gait==0)
       {
         if(gait_zhen<0)
         gait_zhen = 39;
@@ -603,12 +593,12 @@ void loop() {
         }
         
         haoze.framewrite(Servo_p);
-        ESP.wdtFeed();                    //喂狗防止复位
+        ESP.wdtFeed();
         delay(haoze.speed);
 //        delay(deltr);
         gait_zhen--;
       }
-      else if(gait==1)//如果是波动步态
+      else if(gait==1)
       {
         if(gait_zhen<0)
         gait_zhen = 59;
@@ -617,20 +607,20 @@ void loop() {
         Servo_p[i] = forwardaF2[gait_zhen][i];
         
         haoze.framewrite(Servo_p);
-        ESP.wdtFeed();                    //喂狗防止复位
+        ESP.wdtFeed();
         delay(deltr);
         gait_zhen--;
       }
     }
     else if(cmd == 'c')
     {
-      if(gait==0)//如果是三角步态
+      if(gait==0)
       {
         if(body == 0)
         {
           for(int j=0;j<20;j++)
           {
-            //右边三条腿
+            //The three legs on the right
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda[20+j][i];
 
@@ -638,18 +628,18 @@ void loop() {
             Servo_p[16] = forwarda[20+j][16];
             Servo_p[17] = forwarda[20+j][17];
             
-            //左边三条腿       
+            //The three legs on the left       
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda[39-j][i];
                 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed();
               delayMicroseconds(del);
           } 
           for(int j=20;j<40;j++)
           {
-            //右边三条腿
+            //right
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda[j-20][i];
 
@@ -657,13 +647,13 @@ void loop() {
             Servo_p[16] = forwarda[j-20][16];
             Servo_p[17] = forwarda[j-20][17];
             
-            //左边三条腿       
+            //left     
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda[39-j][i];
                 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed();
               delayMicroseconds(del);
           }    
         }
@@ -671,7 +661,6 @@ void loop() {
         {
           for(int j=0;j<20;j++)
           {
-            //右边三条腿
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda2[20+j][i];
 
@@ -679,18 +668,18 @@ void loop() {
             Servo_p[16] = forwarda2[20+j][16];
             Servo_p[17] = forwarda2[20+j][17];
             
-            //左边三条腿       
+                   
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda2[39-j][i];
                 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed(); 
               delayMicroseconds(del);
           } 
           for(int j=20;j<40;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda2[j-20][i];
 
@@ -698,13 +687,13 @@ void loop() {
             Servo_p[16] = forwarda2[j-20][16];
             Servo_p[17] = forwarda2[j-20][17];
             
-            //左边三条腿       
+                  
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda2[39-j][i];
                 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed(); 
               delayMicroseconds(del);
           }    
         }
@@ -712,7 +701,7 @@ void loop() {
         {
           for(int j=0;j<20;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda3[20+j][i];
 
@@ -720,18 +709,18 @@ void loop() {
             Servo_p[16] = forwarda3[20+j][16];
             Servo_p[17] = forwarda3[20+j][17];
             
-            //左边三条腿       
+                  
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda3[39-j][i];
                 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed(); 
               delayMicroseconds(del);
           } 
           for(int j=20;j<40;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda3[j-20][i];
 
@@ -739,22 +728,22 @@ void loop() {
             Servo_p[16] = forwarda3[j-20][16];
             Servo_p[17] = forwarda3[j-20][17];
             
-            //左边三条腿       
+                  
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda3[39-j][i];
                 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed();
               delayMicroseconds(del);
           }    
         }
       }
-      else if(gait==1)//如果是波动步态
+      else if(gait==1)/
       {
           for(int j=0;j<60;j++)
           {
-            //右边腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwardaF2[j][i];
 
@@ -762,26 +751,26 @@ void loop() {
             Servo_p[16] = forwardaF2[j][16];
             Servo_p[17] = forwardaF2[j][17];
 
-            //左边腿
+            
             for(int i=6;i<15;i++)
             Servo_p[i] = forwardaF2[59-j][i];
 
             haoze.framewrite(Servo_p);
               delay(haoze.speed);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed();
               delay(0);
           }        
       }
     }
     else if(cmd == 'd')
     {
-      if(gait==0)//如果是三角步态
+      if(gait==0)//If it is a triangular gait
       {
         if(body == 0)
         {
           for(int j=0;j<20;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda[39-j][i];
 
@@ -789,18 +778,18 @@ void loop() {
             Servo_p[16] = forwarda[39-j][16];
             Servo_p[17] = forwarda[39-j][17];
 
-            //左边三条腿
+            
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda[20+j][i];
 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-            ESP.wdtFeed();                    //喂狗防止复位
+            ESP.wdtFeed();
             delayMicroseconds(del);
           } 
           for(int j=20;j<40;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda[39-j][i];
 
@@ -808,20 +797,20 @@ void loop() {
             Servo_p[16] = forwarda[39-j][16];
             Servo_p[17] = forwarda[39-j][17];
 
-            //左边三条腿
+            
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda[j-20][i];
 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-            ESP.wdtFeed();                    //喂狗防止复位
+            ESP.wdtFeed();
           }
         }
         else if(body == 1)
         {
           for(int j=0;j<20;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda2[39-j][i];
 
@@ -829,17 +818,17 @@ void loop() {
             Servo_p[16] = forwarda2[39-j][16];
             Servo_p[17] = forwarda2[39-j][17];
 
-            //左边三条腿
+           
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda2[20+j][i];
 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-            ESP.wdtFeed();                    //喂狗防止复位
+            ESP.wdtFeed();
           } 
           for(int j=20;j<40;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda2[39-j][i];
 
@@ -847,20 +836,20 @@ void loop() {
             Servo_p[16] = forwarda2[39-j][16];
             Servo_p[17] = forwarda2[39-j][17];
 
-            //左边三条腿
+            
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda2[j-20][i];
 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-            ESP.wdtFeed();                    //喂狗防止复位
+            ESP.wdtFeed();  
           }
         }
         else if(body == 2)
         {
           for(int j=0;j<20;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda3[39-j][i];
 
@@ -868,17 +857,17 @@ void loop() {
             Servo_p[16] = forwarda3[39-j][16];
             Servo_p[17] = forwarda3[39-j][17];
 
-            //左边三条腿
+            
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda3[20+j][i];
 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-            ESP.wdtFeed();                    //喂狗防止复位
+            ESP.wdtFeed();              
           } 
           for(int j=20;j<40;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwarda3[39-j][i];
 
@@ -886,21 +875,21 @@ void loop() {
             Servo_p[16] = forwarda3[39-j][16];
             Servo_p[17] = forwarda3[39-j][17];
 
-            //左边三条腿
+            
             for(int i=6;i<15;i++)
             Servo_p[i] = forwarda3[j-20][i];
 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-            ESP.wdtFeed();                    //喂狗防止复位
+            ESP.wdtFeed();           
           }
         }
       }
-      else if(gait==1)//如果是波动步态
+      else if(gait==1)//If it is a rippling gait
       {
           for(int j=0;j<60;j++)
           {
-            //右边三条腿
+            
             for(int i=0;i<6;i++)
             Servo_p[i] = forwardaF2[59-j][i];
 
@@ -908,53 +897,53 @@ void loop() {
             Servo_p[16] = forwardaF2[59-j][16];
             Servo_p[17] = forwardaF2[59-j][17];
             
-            //左边三条腿
+            
             for(int i=6;i<15;i++)
             Servo_p[i] = forwardaF2[j][i];
 
             haoze.framewrite(Servo_p);
             delay(haoze.speed);
-            ESP.wdtFeed();                    //喂狗防止复位
+            ESP.wdtFeed(); 
             delay(0);
           }        
       }      
     }
-    else if(cmd == 'f')//向左横移
+    else if(cmd == 'f')//Move horizontally to the left
     {
       for(int j=0;j<60;j++)
       {
           haoze.framewrite(forwardaFH[j]);
           delay(haoze.speed);
-          ESP.wdtFeed();                    //喂狗防止复位
+          ESP.wdtFeed(); 
       }
     }
-    else if(cmd == 'g')//向右横移
+    else if(cmd == 'g')//right
     {
       for(int j=0;j<60;j++)
       {
           haoze.framewrite(forwardaFH[59-j]);
           delay(haoze.speed);
-          ESP.wdtFeed();                    //喂狗防止复位
+          ESP.wdtFeed();         
       }      
     }
-    else if(cmd == 'h')//切换步态
+    else if(cmd == 'h')//Switch gait
     {
       gait=!gait;
       cmd = 'e';
     }
-    else if(cmd == 'i')//切换身高
+    else if(cmd == 'i')//Switch height
     {
       body++;
       body=body%3;
       cmd = 'e';
     }
-    else if(cmd == 'j')//原地蹲起
+    else if(cmd == 'j')//Squat and stand up in place
     {
           for(int j=0;j<40;j++)
           {
               haoze.framewrite(dunqia[j]);
               delay(deltr*10);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed();
           }
     }
     else if(cmd == 'k')//跳跳
@@ -963,12 +952,12 @@ void loop() {
           {
               haoze.framewrite(benga[j]);
               delay(deltr*30);
-              ESP.wdtFeed();                    //喂狗防止复位
+              ESP.wdtFeed();
           }
     }    
     else
     {
       delay(100);
-      ESP.wdtFeed();                    //喂狗防止复位
+      ESP.wdtFeed(); 
     }
 }

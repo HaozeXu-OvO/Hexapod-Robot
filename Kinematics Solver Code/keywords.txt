@@ -1,5 +1,5 @@
-BaizeRobot   	KEYWORD1
-Baize_H1mini	KEYWORD1
+HaozeRobot   	KEYWORD1
+Haoze_H1mini	KEYWORD1
 init		    KEYWORD2
 connect		    KEYWORD2
 forward	        KEYWORD2

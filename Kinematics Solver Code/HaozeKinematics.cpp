@@ -1,12 +1,12 @@
 #include "HaozeKinematics.h"
-#define N 4  //齐次矩阵的行列数
+#define N 4  
 
 HaozeKinematics::HaozeKinematics(int num_of_joints_) {
     num_of_joints = num_of_joints_;
     num_of_joints_declared = 0;
 
 }
-//通过MDH参数的方法建立机器人运动学模型
+//Establishing a robotic kinematic model using the MDH parameter method
 void HaozeKinematics::AddJointMDH(float alpha, float a, float theta, float d) {
     Mdh[num_of_joints_declared][0] = alpha;
     Mdh[num_of_joints_declared][1] = a;
@@ -17,7 +17,7 @@ void HaozeKinematics::AddJointMDH(float alpha, float a, float theta, float d) {
     num_of_joints_declared++;
 
 }
-//通过SDH参数的方法建立机器人运动学模型
+//Establishing a robotic kinematic model through SDH parameter methods
 void HaozeKinematics::AddJointSDH(float theta, float d, float alpha, float a) {
     Sdh[num_of_joints_declared][0] = theta;
     Sdh[num_of_joints_declared][1] = d;
@@ -28,7 +28,7 @@ void HaozeKinematics::AddJointSDH(float theta, float d, float alpha, float a) {
     num_of_joints_declared++;
 
 }
-//通过MDH参数的方法进行机器人运动学正解算
+//Solving robot kinematics using the MDH parameter method
 void HaozeKinematics::forwardMDH() {
     // Serial.println("Start MDH 2 Transformer---------------");
     
@@ -43,20 +43,20 @@ void HaozeKinematics::forwardMDH() {
         
         float alpha_rad = alpha;//radians(alpha);
         float theta_rad = theta;//radians(theta);
-        //定义一个中间变量
+        //Define an intermediate variable
         mtx_type zhongjian[4][4] = {
         {cos(theta_rad), -sin(theta_rad), 0, a},
         {sin(theta_rad)* cos(alpha_rad), cos(theta_rad) * cos(alpha_rad), -sin(alpha_rad), -d * sin(alpha_rad)},
         {sin(theta_rad)* sin(alpha_rad), cos(theta_rad)* sin(alpha_rad), cos(alpha_rad), d * cos(alpha_rad)},
         {0, 0, 0, 1}
     };
-    //Matrix.Copy((mtx_type*)A, N, N, (mtx_type*)B);B=A;齐次矩阵赋值
+    //Matrix.Copy((mtx_type*)A, N, N, (mtx_type*)B);B=A;Homogeneous matrix assignment
     Matrix.Copy((mtx_type*)zhongjian, N, N, (mtx_type*)MatrixO[i]);
-    // Matrix.Print((mtx_type*)MatrixO[i], N, N, String(i+1));//打印中间齐次矩阵
+    // Matrix.Print((mtx_type*)MatrixO[i], N, N, String(i+1));//Print the homogeneous matrix in the middle
     }
     // Serial.println("End MDH 2 Transformer---------------");
 
-    //计算MatrixOb
+    //MatrixOb
     //C=A*B;
     //Multiply(mtx_type* A, mtx_type* B, int m, int p, int n, mtx_type* C)
     // Serial.println("Start Forward Kinematics calculate---------------");
@@ -74,12 +74,10 @@ void HaozeKinematics::forwardMDH() {
         };
     for(int i=0;i<num_of_joints;i++)
     {
-        //zhongjian齐次矩阵一开始是个E矩阵，在他右边不断右乘matrixO[i]矩阵
         Matrix.Multiply((mtx_type*)zhongjian, (mtx_type*)MatrixO[i], N, N, N, (mtx_type*)jieguo);
-        // Matrix.Print((mtx_type*)jieguo, N, N, String(i+1));//打印结果齐次矩阵
-        //Matrix.Copy((mtx_type*)A, N, N, (mtx_type*)B);B=A;齐次矩阵赋值
+
         Matrix.Copy((mtx_type*)jieguo, N, N, (mtx_type*)zhongjian);
-        //计算最终结果赋值到matrixOb矩阵
+        //Assign the final result to the matrixOb matrix.
         Matrix.Copy((mtx_type*)jieguo, N, N, (mtx_type*)MatrixOb[i]);
     }
     // Serial.println("End Forward Kinematics calculate---------------");
@@ -99,27 +97,26 @@ void HaozeKinematics::forwardMDH() {
 
 }
 
-//打印矩阵MatrixO
+//Print MatrixO
 void HaozeKinematics::PrintMatrixO() {
     Serial.println("Start Print MatrixO---------------");
     for(int i=0;i<num_of_joints;i++)
     {
-        Matrix.Print((mtx_type*)MatrixO[i], N, N, String(i+1));//打印中间齐次矩阵
+        Matrix.Print((mtx_type*)MatrixO[i], N, N, String(i+1));
     }
     Serial.println("Ene Print MatrixO---------------");
 }
 
-//打印矩阵MatrixOb
+//Print MatrixOb
 void HaozeKinematics::PrintMatrixOb() {
     Serial.println("Start Print MatrixOb---------------");
     for(int i=0;i<num_of_joints;i++)
     {
-        Matrix.Print((mtx_type*)MatrixOb[i], N, N, String(i+1));//打印中间齐次矩阵
+        Matrix.Print((mtx_type*)MatrixOb[i], N, N, String(i+1));
     }
     Serial.println("Ene Print MatrixOb---------------");  
 }
 
-//打印矩阵MatrixOb
 void HaozeKinematics::PrintEnd_effectorPoint() {
     char buffer[50]; // Adjust the size based on your needs
     Serial.print("End_effectorPoint:");
